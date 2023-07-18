@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #F3F3F3;
+            }
+            #app {
+                display: flex;
+                justify-content: space-between;
+                height: 100vh;
+                align-items: center;
+                padding: 2rem;
+                box-sizing: border-box;
+            }
+
+            .svg-container {
+                width: 50%;
+                background-color: #FFFFFF;
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .input-container {
+                width: 45%;
+                background-color: #FFFFFF;
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .input-container input, .input-container textarea {
+                padding: .5rem;
+                border-radius: 4px;
+                border: 1px solid #ddd;
+            }
+
+            .input-container button {
+                padding: .5rem 1rem;
+                border: none;
+                border-radius: 4px;
+                color: #fff;
+                background-color: #007BFF;
+                cursor: pointer;
+                transition: background-color .3s ease;
+            }
+
+            .input-container button:hover {
+                background-color: #0056b3;
+            }
+
+            .input-container button:active {
+                background-color: #004085;
+            }
+
+            .input-container button:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+            }
+
+            .input-container textarea {
+                height: 100px;
+                resize: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <div class="svg-container" id="svg-container">
+            </div>
+            <div class="input-container">
+                <input type="text" class="badge-url" placeholder="Enter first image URL" />
+                <input type="text" class="badge-url" placeholder="Enter second image URL" />
+                <input type="text" class="badge-url" placeholder="Enter third image URL" />
+                <button id="add-badges">Add badges</button>
+                <button id="export-png">Export as PNG</button>
+                <button id="export-svg">Export as SVG</button>
+                <textarea id="markdown-output" readonly placeholder="Markdown output will appear here..."></textarea>
+            </div>
+        </div>
+       
+        <script>
+            fetch('assets/images/gary.svg')
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('svg-container').innerHTML = data;
+
+                })
+                .catch(error => console.error(error));
+
+            document.getElementById('add-badges').addEventListener('click', function() {
+                const badgeUrls = Array.from(document.getElementsByClassName('badge-url')).map(el => el.value);
+                const svg = document.querySelector('svg');
+                badgeUrls.forEach((badgeUrl, index) => {
+                    if (!badgeUrl) return;
+                    const newBadge = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                    convertImgToDataURLviaCanvas(badgeUrl, function(base64Img) {
+                        newBadge.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64Img);
+                        newBadge.setAttributeNS(null, 'x', (350 + (115 * index))); 
+                        newBadge.setAttributeNS(null, 'y', (575 + (7.5 * index))); 
+                        newBadge.setAttributeNS(null, 'width', '115');
+                        newBadge.setAttributeNS(null, 'height', '115');
+                        svg.appendChild(newBadge);
+                    });
+                });
+            });
+
+            function convertImgToDataURLviaCanvas(url, callback, outputFormat) {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = function() {
+                    const canvas = document.createElement('CANVAS');
+                    const ctx = canvas.getContext('2d');
+                    canvas.height = this.naturalHeight;
+                    canvas.width = this.naturalWidth;
+                    ctx.drawImage(this, 0, 0);
+                    const dataURL = canvas.toDataURL(outputFormat);
+                    callback(dataURL);
+                    canvas = null; 
+                };
+                img.src = 'https://cors-anywhere.herokuapp.com/' + url;
+            }
+
+            document.getElementById('export-png').addEventListener('click', function() {
+                const svg = document.getElementById('gary-svg');
+                const bbox = svg.getBoundingClientRect();
+
+                if (svg.width.baseVal.unitType !== 1) svg.setAttribute('width', bbox.width);
+                if (svg.height.baseVal.unitType !== 1) svg.setAttribute('height', bbox.height);
+
+                const svgData = (new XMLSerializer()).serializeToString(svg);
+                const svgURL = 'data:image/svg+xml; charset=utf8, ' + encodeURIComponent(svgData);
+
+                const svgImg = new Image();
+
+                svgImg.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.width || bbox.width;
+                    canvas.height = this.height || bbox.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(svgImg, 0, 0, canvas.width, canvas.height);
+                    const pngData = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = pngData;
+                    link.download = 'gary-badges.png';
+                    link.click();
+                    document.getElementById('markdown-output').value = '![](./gary-badges.png)'; 
+                };
+
+                svgImg.src = svgURL;
+            });
+
+            document.getElementById('export-svg').addEventListener('click', function() {
+                const serializer = new XMLSerializer();
+                const source = serializer.serializeToString(document.getElementById('gary-svg'));
+                const url = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(source);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'gary-badges.svg';
+                link.click();
+            });
+        </script>
+    </body>
+</html>
